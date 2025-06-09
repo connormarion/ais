@@ -54,6 +54,9 @@ app.get('/vessel/:imo', (req, res) => {
     res.status(404).json({ error: 'Vessel not found yet in stream. Wait and retry.' });
   }
 });
+app.get('/ping', (req, res) => {
+  res.status(200).send('AIS proxy is alive.');
+});
 
 app.listen(PORT, () => {
   console.log(`AIS Proxy server running on port ${PORT}`);
