@@ -1,43 +1,64 @@
 // imo_to_mmsi.js
-const fetch = require('node-fetch');
-const fs = require('fs');
+import fetch from 'node-fetch';
+import { writeFileSync } from 'fs';
 
 const userkey = '61ed684bc5ebddc75b174555b376aab0';
-
+// Full IMO list
 const imos = [
-  9043873, 9044645, 9043861, 9043938, 9043885, 9043914, 9413432, 9332858,
-  9566887, 9105798, 9841392, 9349069, 9695171, 9010137, 9778973, 9664988,
-  9472361, 9472373, 9347413, 7723821, 9622655, 9281396, 9354038, 8628195,
-  // ... continue adding all your IMOs here ...
+  9043873,9044645,9043861,9043938,9043885,9043914,9413432,9332858,
+  9566887,9105798,9841392,9349069,9695171,9010137,9778973,9664988,
+  9472361,9472373,9347413,7723821,9622655,9281396,9354038,8628195,
+  8982577,8983210,9759379,9383792,7121140,8982591,8507016,8982553,
+  8982565,9515852,8964109,7942685,9043835,8992845,9158068,8982541,
+  9271705,9202302,9271200,7026998,7301518,9347401,8964862,8987905,
+  9955234,8851106,8978710,8978174,8968399,7366805,9055814,8016304,
+  1056109,9053165,8992819,9053153,8977730,8842143,8978227,9089396,
+  8978382,9137349,8978502,7901966,8322258,8936592,8841565,9591648,
+  9529889,9776925,9268629,9075228,9262742,9349057,8892033,9670638,
+  7604300,9132313,8982266,9518957,9458884,9627423,9349071,9478559,
+  9546021,8120014,9132234,7925302,9998676,8993966,9752577,8213237,
+  9407809,9388443,8835566,8115710,9322592,9647655,9779070,8131362,
+  8940581,9647643,7514397,9423114,8968181,7417276,9679725,9672648,
+  8973435,8964850,9555761,8023541,9585077,9472347,9245940,8305511,
+  9645619,9647588,9647629,9582312,9472359,9568835,8966717,9575113,
+  8987852,9472438,7925314,8767305,9645645,8967553,9601120,8976475,
+  9382877,8765943,9382865,9469405,9040326,8968167,1035894,9900887,
+  9260756,9260744,9578737,9208887,8998112,9993054,9382839,8983521,
+  7802562,8764975,8842246,8978497,9213002,7914482,9472440,8428583,
+  8964288,8964795,9993066,8998124,9952880,8978461,6615912,8765785,
+  8878855,9132325,9657674,8975823,9234551,9196565,9477969,8121355,
+  9212993,9327695,8977455,9097147,8964135,8977194,9417713,9417816,
+  9548627,9624586,9361653,9443542,9494888,9657935,9592989,9764441,
+  9559016,9769659,9764453,9559028,9725811,9659969,9690638,9576686,
+  9605918,9299848,9668623,9668611,9419591,9729805,9706621,8785747,
+  8793407,9667679,9667693,9734616,9622526,9697454,8994788,9572410,
+  9698472,9700079,9571284,8657067
 ];
 
-async function fetchMMSIs(imoList) {
-  const results = [];
-
-  for (const imo of imoList) {
-    try {
-      const url = `https://api.vesselfinder.com/vessels?userkey=${userkey}&imo=${imo}&format=json`;
-      const res = await fetch(url);
-      const data = await res.json();
-
-      if (Array.isArray(data) && data.length > 0 && data[0].AIS?.MMSI) {
-        results.push({ imo, mmsi: data[0].AIS.MMSI, name: data[0].AIS.NAME });
-        console.log(`✅ IMO ${imo} → MMSI ${data[0].AIS.MMSI}`);
-      } else {
-        console.warn(`❌ IMO ${imo} → No MMSI found`);
-      }
-    } catch (err) {
-      console.error(`⚠️ Error for IMO ${imo}:`, err.message);
+async function lookupIMO(imo) {
+  try {
+    const url = `https://api.vesselfinder.com/vessels?userkey=${userkey}&imo=${imo}&format=json`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (Array.isArray(data) && data[0]?.AIS?.MMSI) {
+      console.log(`✅ IMO ${imo} → MMSI ${data[0].AIS.MMSI}`);
+      return { imo, mmsi: data[0].AIS.MMSI };
     }
-
-    await new Promise(r => setTimeout(r, 1000)); // avoid rate limit
+    console.warn(`⚠️ IMO ${imo} → No MMSI found`);
+    return null;
+  } catch (err) {
+    console.error(`❌ IMO ${imo} → Error`, err);
+    return null;
   }
-
-  return results;
 }
 
 (async () => {
-  const converted = await fetchMMSIs(imos);
-  fs.writeFileSync('imo_to_mmsi.json', JSON.stringify(converted, null, 2));
-  console.log(`✅ Saved ${converted.length} IMO→MMSI mappings.`);
+  const results = [];
+  for (const imo of imos) {
+    const r = await lookupIMO(imo);
+    if (r) results.push(r);
+    await new Promise(r => setTimeout(r, 500)); // avoid rate limit
+  }
+  writeFileSync('imo_to_mmsi.json', JSON.stringify(results, null, 2));
+  console.log(`✅ Converted ${results.length} IMO→MMSI`);
 })();
